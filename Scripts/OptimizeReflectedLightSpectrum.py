@@ -16,6 +16,26 @@ from itertools import cycle
 from photochem.clima import rebin
 
 def validate_inputs(flux, metal, tint, kzz, phase):
+
+"""
+This makes sure all inputs are within the range used in the default grid. Please change the ranges in the script if you have changed the ranges of inputs
+for the PICASO, Photochem, and Reflected Spectra grids describing mini Neptunes.
+
+Parameters:
+    flux: np.array
+        This is the total flux of the planet in units of x Solar.
+    metal: np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint: np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz: np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase: np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+Returns:
+    Boolean, if within range will return True, and if not will return False.
+"""
     # Define ranges for each parameter
     ranges = {
         'flux': {'min': 0.1, 'max': 2},
@@ -47,6 +67,29 @@ def validate_inputs(flux, metal, tint, kzz, phase):
 
 # This is the function describing g(x)
 def mini_nep_model(wv, flux, metal, tint, kzz, phase):
+"""
+This solve for the flux of planet/star ratio (fpfs) (will interpolate if inputs are not exactly on grids), and also returns the wavelengths associated with those fpfs values.
+
+Parameters:
+    flux: np.array
+        This is the total flux of the planet in units of x Solar.
+    metal: np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint: np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz: np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase: np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+Returns:
+    fpfs_interpolated: list
+        These are the fpfs values interpolated
+    fpfs: list
+        These are the fpfs values not interpolated
+    wv: list
+        These are the associated wavenumbers with those fpfs values
+"""
 
     range_check = validate_inputs(flux, metal, tint, kzz, phase)
 
@@ -70,6 +113,27 @@ def mini_nep_model(wv, flux, metal, tint, kzz, phase):
         
 
 def objective(z, wv, fpfs_earth):
+
+"""
+This solves for a single list of inputs, a given range of wavenumbers, and the flux planet/star ratio of the earth you'd like to optimize your mini-Neptune for
+that is affiliated with those wavenumbers. 
+
+Parameters:
+    z: multidimensional array of inputs for flux, metal, tint, kzz, and phase
+        These are the same inputs you'd want to plug into the mini_nep_model function.
+    wv: list of floats
+        These are the wavenumbers you wish to find associated vector norms of for fpfs values.
+        Typically in our notebooks we used earth wv and were searching for associated mini-Neptune wavenumbers to
+        Earths.
+    fpfs_earth: list of floats
+        These are the flux planet/star ratios associated with the wv provided, in our case of Earth or whatever
+        you want to compare with your mini-Neptunes. 
+Returns:
+    vector norm: float or None
+        If it is able to calculate fpfs_interp of your minineptune, it then calcuates how far off that is from Earths at 
+        a given wavelength. If it is not able to calculate fpfs_interp, it returns None.
+
+"""
     res_dict = {}
     flux, metal, tint, kzz, phase = z
     fpfs_interp, fpfs_before, wno_before = mini_nep_model(wv, flux, metal, tint, kzz, phase)
@@ -80,6 +144,37 @@ def objective(z, wv, fpfs_earth):
         return None
 
 def calc_objective_dict(wv_earth, fpfs_earth, resolution=5, total_flux_list=None, planet_metal_list=None, tint_list=None, kzz_list=None, phase_list=None):
+
+"""
+This solves for a range of inputs, a range of wavenumbers, and the flux planet/star ratio of the earth you'd like to optimize your mini-Neptune for affiliated
+with those wavenumbers. 
+
+Parameters:
+    wv_earth: list of floats
+        These are the wavenumbers you wish to find associated vector norms of for fpfs values.
+        Typically in our notebooks we used earth wv and were searching for associated mini-Neptune wavenumbers to
+        Earths.
+    fpfs_earth: list of floats
+        These are the flux planet/star ratios associated with the wv provided, in our case of Earth or whatever
+        you want to compare with your mini-Neptunes. 
+    resolution: integer
+        This tells you how many points you want to range over for each input in the script;
+        Default values are associated with the default grid provided in the github repo. 
+    total_flux_list: list of floats
+        Total fluxes you wish to range over. Should be in units of x Solar total flux.
+    planet_metal_list: list of floats or np.linspace
+        Planet metallicities you wish to range over. Should be in units of log10 x Solar Metallicity.
+    tint_list: list of floats or np.linspace
+        Internal temperature of the planet you wish to range over. Should be in units of Kelvin.
+    kzz_list: list of floats or np.linspace
+        Eddy diffusion coefficient in units of cm^2/s, also in log10 space. 
+    phase_list: list of floats or np.linspace
+        Phase of light visible from planet in orbit, in units of radians. 
+Returns:
+    fpfs_dict: dictionary
+        This saves all the fpfs differences between Earth and your mini-Neptune or planet from grids with their associated inputs as the keys.
+
+"""
 
     if total_flux_list is not None:
         total_flux = total_flux_list
@@ -120,6 +215,28 @@ def calc_objective_dict(wv_earth, fpfs_earth, resolution=5, total_flux_list=None
     return fpfs_dict
 
 def graph_vec_norm_fpfs(fpfs_dict=None, tol=None, full_plot=True):
+
+"""
+This plots a scatterplot comparing the fpfs difference value to the index it had in the list of inputs (which were the keys),
+providing a visual method of seeing what case had the smallest fpfs difference between a mini-Neptune and Earth.
+
+Parameters:
+    fpfs_dict: dictionary
+        This saves all the fpfs differences between Earth and your mini-Neptune or planet from grids with their associated inputs as the keys.
+    tol: integer
+        This limits the y-axis, or fpfs_difference values to zoom into the results in the graph, and visually narrow down which case was minimized.
+        All values that are below the tolerance will be plotted in orange. 
+    full_plot:
+        This still plots values outside of the tolerance in blue.
+
+Returns:
+    minNep_inputs_float: multidimensional list (2D mostly)
+        This provides all inputs whose fpfs differences were below the tolerance
+    fpfs_values_min: 2D list
+        This provides all fpfs differences that were below the tolerance
+    index_min: 2D list
+        This provides the index of all inputs whose fpfs differences were below the tolerance
+"""
 
     index = np.linspace(0, len(fpfs_dict.keys()) - 1, len(fpfs_dict.keys()))
     
@@ -174,6 +291,24 @@ def graph_vec_norm_fpfs(fpfs_dict=None, tol=None, full_plot=True):
 
 
 def graph_1v1_planet_comp(minNep_inputs_float, wv_earth, fpfs_earth, earth_type=None):
+
+"""
+This plots the miniNeptune reflected spectra that was optimized via the graph_vec_norms function,
+and compares it to a reflected spectra of Earth.
+
+Parameters:
+    minNep_inputs_float: 2D list
+        Pull this from running graph_vec_norm_fpfs.
+    wv_earth: list of floats
+        These are the wavenumbers you wish to find associated vector norms of for fpfs values.
+        Typically in our notebooks we used earth wv and were searching for associated mini-Neptune wavenumbers to
+        Earths.
+    fpfs_earth: list of floats
+        These are the flux planet/star ratios associated with the wv provided, in our case of Earth or whatever
+        you want to compare with your mini-Neptunes. 
+    earth_type: 'Archean' or 'Earth' strings
+        There are default settings for either Archean or Earth, and changes the labels in the graph
+"""
     
     for index in minNep_inputs_float:
         flux = index[0]
@@ -193,6 +328,26 @@ def graph_1v1_planet_comp(minNep_inputs_float, wv_earth, fpfs_earth, earth_type=
         plt.legend()
 
 def calc_RSM_earth_phases(df_mol_earth=None, phase_earth=None, earth_RSM_dict={}, earth_type='Archean'):
+
+"""
+This will calculate the reflected light spectra of multiple phases of Earth, for different types of Earth.
+
+Parameters:
+    df_mol_earth: dict
+        This should be a dictionary of molecules and their abundances as values (between 0 and 1).
+    phase_earth: 2D list
+        This should be a list of phases you wish to iterate over in radians.
+    earth_RSM_dict: by default, an empty dictionary
+        You could, in theory, add to an already existing earth_RSM_dictionary here if this function has already been run
+        for one earth case like Archean.
+    earth_type: string
+        This is the type of earth whose molecular abundance you are simulating. Note the rest of the code in this script
+        focuses on Modern and Archean earths. 
+Returns:
+    earth_RSM_dict: dictionary
+        The keys each describe the type of earth, wv/fpfs/alb value, and phase associated with that are, 
+        while the values are the wv, fpfs, and alb values recorded from the reflected light spectra calculation.
+"""
 
     if phase_earth == None:
         phase_earth = np.linspace(0, np.pi, 19)
@@ -238,6 +393,17 @@ def calc_RSM_earth_phases(df_mol_earth=None, phase_earth=None, earth_RSM_dict={}
     return earth_RSM_dict
 
 def restructure_objective_res(minNep_inputs_float, wv_earth):
+
+    """
+    This restructures the objective results by resolving for the flux of planet/star ratio and wavenumber
+    values associated with the reflected spectra calculations. 
+
+    Parameters:
+        minNep_inputs_float: graph_vec_norm_fpfs output
+        wv_earth: list
+            This is the wavenumber of earth that you want to solve for fpfs differences with
+    
+    """
     
     fpfs_interpolated_minNep = []
     wno_interpolated_minNep = []
@@ -258,6 +424,31 @@ def restructure_objective_res(minNep_inputs_float, wv_earth):
     return fpfs_interpolated_minNep, wno_interpolated_minNep, input_assos_minNep
 
 def plot_RSM_earthphases(phase_earth, fpfs_earth, wv_earth, fpfs_minNep, wno_minNep, input_assos_minNep, type_earth='None', lim_earth_rang=None, lim_minNep_rang=None):
+
+    """
+    This plots multiple mini Neptune structures compared with a range of reflected spectras of Earth at different phases. 
+
+    Parameters:
+        phase_earth: np.linspace array
+            This provides all the phases used to calculate reflected spectra for Earth, in radians
+        fpfs_earth: 2D list
+            This is a list of all flux of planet/star ratios associated with wv_earth and phases of Earth.
+        wv_earth: 2D list
+            This is the list of wavenumbers explored for various phases of Earth.
+        fpfs_minNep: 2D list
+            This is the list of flux of planet/star ratios associated with the miniNeptunes you wish to graph.
+        wno_minNep: 2D list
+            This is the list of wavenumbers associated with mini Neptune planet/star flux ratios.
+        input_assos_minNep: 2D list
+            These are the integer indices associated with what key inputs and values the mini Neptunes had.
+        type_earth: string
+            These represent what type of earth was being described by the fpfs_earth, wv_earth, etc., values. 
+            We mostly used Archean and Modern Earth.
+        lim_earth_rang: integer
+            This limits how many phases of Earth you actually plot
+        lim_minNep_rang: integer
+            This limits how many miniNeptunes you actually plot
+    """
 
     print(f" This is the length right before plotting mini Neptunes: {len(wno_minNep), len(fpfs_minNep)}")
     
@@ -317,7 +508,25 @@ def plot_RSM_earthphases(phase_earth, fpfs_earth, wv_earth, fpfs_minNep, wno_min
                     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
 
 
-def graph_RSM_arc_mod_earthphase_minNep(filename='earth_diff_phases.pkl', phase_earth=None, wv_earth_minNep=None, minNep_inputs_float=None, limit_input=30, type_earth='Modern'):
+def graph_RSM_arc_mod_earthphase_minNep(filename='earth_diff_phases.pkl', phase_earth=None, wv_earth_minNep=None, minNep_inputs_float=None, type_earth='Modern'):
+
+    """
+    Typically, this function is used to call the plot_RSM_earthphases function more easily. It opens saved data for earth at different phases and then plots it against
+    the list of miniNeptunes you chose. 
+
+    Parameters:
+        filename: string
+            This describes the file location of a pickle file containing a dictionary of the reflected spectrum (wv, alb, fpfs) of Earth at different phases values created using the function calc_RSM_earth_phases.
+        phase_earth: list/array from np.linspace
+            These were the phases used to create the earth_diff_phases file.
+        wv_earth_minNep: 2D list
+            These are the optimized mini Neptunes found by using the function, graph_vec_norm_fpfs, but specific to the wavenumbers used.
+        minNep_inputs_float: 2D list
+            These are the optimized mini Neptunes found by using the function, graph_vec_norm_fpfs, but specific to the inputs (keys) of the resulting dictionary.
+        type_earth: string
+            This describes what type of earth your data was describing from filename, as it helps label the plot axis and legends.  Note the only
+            available data options for this function are 'Archean' and 'Modern' earth. 
+    """
 
     # This function is specific to archean and modern Earth; this will change with alterations to the keys of the earth_diff_phases file.
     wv_archean_list = []
@@ -357,6 +566,16 @@ def graph_RSM_arc_mod_earthphase_minNep(filename='earth_diff_phases.pkl', phase_
         print(f"Only available types of Earth for this function are Archean and Modern.")
 
 def graph_hist_input_comp(archean_earth_minNep_inputs_float, modern_earth_minNep_inputs_float):
+
+    """
+    This plots a histogram comparison of archean and modern earth inputs that were optimized by the graph_vec_norm_fpfs function,
+    specific to Modern and Archean Earth. Works best for optimization problems where multiple cases were considered "optimized". 
+    The histogram itself compares inputs of the mini Neptunes that best fit the Archean vs Modern earth reflected light spectras. 
+
+    Parameters:
+        archean_earth_minNep_inputs_float = output of graph_vec_norm_fpfs w/ archean earth data
+        modern_earth_minNep_inputs_float = output of graph_vec_norm_fpfs w/ modern earth data
+    """
     
     # This shows how many of the same inputs resulted in an output close to the Earth like spectrum.
     keys_list_float = modern_earth_minNep_inputs_float # Modern Earth Matches
@@ -403,6 +622,23 @@ def graph_hist_input_comp(archean_earth_minNep_inputs_float, modern_earth_minNep
     plt.subplots_adjust(wspace=0.5, hspace=2) # Increase horizontal and vertical space
 
 def vec_norm_fpfs_minimized(fpfs_dict=None):
+
+    """
+    This takes the output from the function, calc_objective_dict, and solves for the minimized miniNeptune fpfs differences case, and
+    makes it so you can skip the graph_vec_norm step of optimization returning the same outputs as graph_vec_norm did.
+
+    Parameters:
+        fpfs_dict: dictionary
+            This is the output of the calc_objective_dict function.
+    Returns:
+        minNep_inputs_float: multidimensional list (2D mostly)
+        This provides all inputs whose fpfs differences were associated with the smallest fpfs difference between a mini Neptune and Earth.
+    fpfs_values_min: 2D list
+        This provides the fpfs values associated with the smallest fpfs difference between a mini Neptune and Earth.
+    index_min: 2D list
+        This provides the index of all inputs whose fpfs differences were minimized. 
+
+    """
     
     fpfs_values = []
     fpfs_values_min = []
@@ -440,6 +676,19 @@ def vec_norm_fpfs_minimized(fpfs_dict=None):
     return minNep_inputs_float_min, minimized_fpfs_value, minimized_index
 
 def find_closest(sorted_list, x):
+
+    """
+    This finds the closest values in the sorted list, on the left and right, that x comes close to.
+
+    Parameters:
+        sorted_list: list
+        x: float
+    
+    Returns:
+        Closest value, either on the left or right, that x is to in the sorted list. 
+
+    """
+
     # Find the index where x would be inserted in sorted_list
     insertion_point = np.searchsorted(np.array(sorted_list), x, side='left')
     
@@ -462,6 +711,20 @@ def find_closest(sorted_list, x):
 
 
 def check_for_cloud(minNep_inputs):
+
+    """
+    This finds the closest values in the Reflected Spectra Grid, on the left and right, that the miniNeptune inputs found in optimization come close to.
+
+    Parameters:
+        minNep_inputs: list
+        Should provide a list of input parameters [flux, metallicity, tint, kzz, phase], that you would like to compare to those that were used to create the Reflected Spectra Grid.
+    
+    Returns:
+        boolean
+        This describes whether the closest value used in the grid had a cloud or not (had = True, not = False), in order to determine whether an interpolated case should have imposed
+        a cloud or not when looking at results. This is part of the module to check whether or not clouds have been properly applied. 
+        
+    """
 
     # Set full grid of Reflected Spectra results
     filename='results/ReflectedSpectra_fv.h5'
@@ -541,6 +804,23 @@ def check_for_cloud(minNep_inputs):
             return False
 
 def calc_sol_dict(minNep_inputs):
+
+    """
+    This resolves for the photochemistry and PT profiles of the optimized miniNeptune inputs. 
+    This was mostly made for easier plotting for changing the imposed cloud.
+
+    Parameters:
+        minNep_inputs: [flux, metallicity, tint, kzz, phase]
+        Note that the units of each are always the same, in xSolar, log10 xSolar, Kelvin, cm^2/s, and radians, annd are all related to the planet.
+    
+    Returns:
+        sol_dict: dictionary
+            Each key contains abundances of molecules in a steady state.
+        solaeq_dict: dictionary
+            Each key contains abundances of molecules in chemical equilibrium.
+        PT_list_Photochem: 2D list
+            First list is pressure (dynes/cm^2), second is temperature (Kelvin)
+    """
     
     for input_value in minNep_inputs:
         
@@ -587,6 +867,14 @@ def calc_sol_dict(minNep_inputs):
 
 
 def plot_photochem_model_with_cloud(minNep_inputs):
+
+    """
+    This plots a single mini Neptune case with its PT profile, Photochemical abundances, and a top and bottom layer representing the cloud that was implemented (if it had a cloud).
+
+    Parameters:
+        minNep_inputs: [flux, metallicity, tint, kzz, phase]
+            Note that the units of each are always the same, in xSolar, log10 xSolar, Kelvin, cm^2/s, and radians, annd are all related to the planet.
+    """
 
     cloud_check = check_for_cloud(minNep_inputs = minNep_inputs)
     print(cloud_check)
@@ -704,21 +992,20 @@ def solve_optimal_graph_bundle(minNep_modernEarth, minNep_archeanEarth, lim_minN
 
 # The following functions help solve an optimization problem incorporating a single point & part of the spectrum
 def flux_in_wv_range(wv, F, wv_range):
+
     """Compute the flux passing through `wv_range`
 
-    Parameters
-    ----------
-    wv : ndarray
-        Center of wavelengths bins
-    F : ndarray
-        Flux going through each bin.
-    wv_range : ndarray
-        An array of length 2 that gives a wavelength range.
+    Parameters:
+        wv : ndarray
+            Center of wavelengths bins
+        F : ndarray
+            Flux going through each bin.
+        wv_range : ndarray
+            An array of length 2 that gives a wavelength range.
 
-    Returns
-    -------
-    F_in_wv_range : float
-        The flux passing through wv_range
+    Returns:
+        F_in_wv_range : float
+            The flux passing through wv_range
     """
     assert np.all(wv[1:] > wv[:-1])
     print(len(wv_range), wv_range)
@@ -735,30 +1022,61 @@ def calc_objective_dict_point_wv_range(wv_earth, fpfs_earth, resolution=5, total
 
 
     """
-        # WORKED, but rebinning is weird so trying to limit the wavelengths and fpfs values it is looking at above.
-        for bin_lim_range in bin_lim:
-            new_earth_fpfs = rebin(wv_earth, fpfs_earth[:-1], np.array(bin_lim_range)*1e+4)
-            new_earth_wv = np.mean(np.array(bin_lim_range))
-            wv_earth_in_bin_lim.append(new_earth_wv)
-            fpfs_earth_in_bin_lim.append(new_earth_fpfs)
-                     
-            # Then for each of those solutions, we solve for the minNep rebinned point. 
-            for flux in total_flux:
-                for metal in planet_metal:
-                    for tint_val in tint:
-                        for kzz_val in kzz:
-                            for phase_val in phase:
-                                z = flux, metal, tint_val, kzz_val, phase_val
-                                fpfs_interp, fpfs_before, wno_before = mini_nep_model(wv=wv_earth, flux=flux, metal=metal, tint=tint_val, kzz=kzz_val, phase=phase_val)
-                                
-                                new_minNep_fpfs_binned = rebin(wv_earth, fpfs_interp[:-1], np.array(bin_lim_range)*1e+4)
-                                fpfs_minNep_in_bin_lim.append(new_minNep_fpfs_binned)
-                                wv_minNep_in_bin_lim.append(np.mean(bin_lim_range))
+    This function calculated the optimal, through vector norms, mini Neptune match to an Earth reflected spectrum, with the added option of limiting the wavelengths compared or binning 
+    the fpfs (flux of planet/star ratios) values over a wavelength range into a single point.
 
-                                fpfs_difference_grid = np.sqrt(np.sum((new_minNep_fpfs_binned - new_earth_fpfs)**2))
+    Parameters:
+        wv_earth: 2D list
+            This is the list of wavenumbers explored for various phases of Earth.
+        fpfs_earth: 2D list
+            This is the list of flux of planet/star ratios associated with the Earths you used for wv_earth.
+        resolution: integer
+            This is how many values/input to range over when exploring the mini Neptune grids. If you don't wish to use the default
+            values that was using the mini-Neptune space I used for my project, you can manually request flux, metallicity, tint, kzz, and phase
+            via the list parameters and set this one to None. 
+        total_flux_list: 1D list of floats
+            Total fluxes you wish to range over. Should be in units of x Solar total flux.
+        planet_metal_list: 1D list of floats or np.linspace
+            Planet metallicities you wish to range over. Should be in units of log10 x Solar Metallicity.
+        tint_list: list of floats or np.linspace
+            Internal temperature of the planet you wish to range over. Should be in units of Kelvin.
+        kzz_list: 1D list of floats or np.linspace
+            Eddy diffusion coefficient in units of cm^2/s, also in log10 space. 
+        phase_list: 1D list of floats or np.linspace
+            Phase of light visible from planet in orbit, in units of radians. 
+        bin_lim: 2D list
+            This provides the wavelength range, in microns, you wish to bin fpfs values into a single point
+        wv_lim: 2D list
+            This provides the wavelength range you wish to limit the reflected spectra being compared between for both Earth and the mini-Neptune.
+        
+    Returns:
+        fpfs_dict: dictionary
+            Saves all fpfs differences values for mini Neptunes compared to Earth for the full spectrum, limited wavelength range, and binned points. 
 
-                                fpfs_dict[f'{z}_fpfsrebinned_diff_{bin_lim_range}'] = fpfs_difference_grid
-                                        
+            fpfs_dict[f'{z}'] = fpfs_difference_grid, provides the fpfs difference between the full spectrum of the mini Neptune and of Earth
+            fpfs_dict[f'fpfsrebinned_diff_{z}_{bin_lim_range}'] = fpfs_difference_grid, provides the fpfs difference between the binned spectrum of the mini Neptune and Earth
+            fpfs_dict[f'fpfs_wvlim_{z}_{wv_lim_range}'] = fpfs_difference_grid, provides the fpfs difference between the wavelength limited spectrum of the mini Neptune and Earth
+
+        fpfs_wv_dict: dictionary
+            Saves all wavelength related values and fpfs values, including those that have been binned into the single point, those between the wavelength range, and those without any limitations just
+            based on the initial inputs you entered describing the mini Neptune.
+
+            'wv_earth_wv': wv_earth_in_wv_lim, provides the Earth wavelength in microns in the wavelength limit
+            'wv_minNep_wv': wv_minNep_in_wv_lim, provides the mini Neptune wavelength in microns in the wavelength limit
+            'fpfs_earth_wv': fpfs_earth_in_wv_lim, provides the Earth fpfs in the wavelength limit
+            'fpfs_minNep_wv': fpfs_minNep_in_wv_lim, provides the mini Neptune fpfs in the wavelength limit
+            'wv_earth_bin': wv_earth_in_bin_lim, provides the Earth wavelength in microns in the bin limit
+            'wv_minNep_bin': wv_minNep_in_bin_lim, provides the mini Neptune wavelength in microns in the bin limit
+            'fpfs_minNep_bin': fpfs_minNep_in_bin_lim, provides the mini Neptune fpfs in the bin limit
+            'fpfs_earth_bin':fpfs_earth_in_bin_lim, provides the Earth fpfs in the bin limit
+            'wv_earth_full': wv_earth, provides the full wavelength spectrum of Earth (in microns)
+            'fpfs_earth_full': fpfs_earth, provides the full fpfs spectrum of Earth
+            
+            These are repeat values of the binning wavelengths and fpfs values, but for now kept them here to keep Jupyter Notebooks Running.
+            'wv_earth_bin_lim': wv_bin_earth_wv_lim, provides the Earth wavelength in microns in the bin limit 
+            'fpfs_earth_bin_lim': fpfs_bin_earth_wv_lim, 
+            'wv_minNep_bin_lim': wv_minNep_in_bin_lim, 
+            'fpfs_minNep_bin_lim': fpfs_minNep_in_bin_lim                            
 """
     
     if total_flux_list is not None:
@@ -874,6 +1192,7 @@ def calc_objective_dict_point_wv_range(wv_earth, fpfs_earth, resolution=5, total
                         'fpfs_minNep_bin': fpfs_minNep_in_bin_lim, 'fpfs_earth_bin':fpfs_earth_in_bin_lim,
                        'wv_earth_full': wv_earth, 'fpfs_earth_full': fpfs_earth, 
                        'wv_earth_bin_lim': wv_bin_earth_wv_lim, 'fpfs_earth_bin_lim': fpfs_bin_earth_wv_lim, 
+                       'wv_earth_bin_lim': wv_bin_earth_wv_lim, 'fpfs_earth_bin_lim': fpfs_bin_earth_wv_lim, 
                        'wv_minNep_bin_lim': wv_minNep_in_bin_lim, 'fpfs_minNep_bin_lim': fpfs_minNep_in_bin_lim}
         
     return fpfs_dict, fpfs_wv_dict
@@ -882,10 +1201,26 @@ def calc_objective_dict_point_wv_range(wv_earth, fpfs_earth, resolution=5, total
 def fpfs_minimized_wvbinlim(fpfs_diff_dict=None):
 
     """
-    What do I need?
-    - fpfs values w/ wavelength values rebinned as a single point difference between minNep & Earth
-    - fpfs values and wv values that have been limited in a certain wavelength range and difference between minNep & Earth
-    - List of inputs these were associated with
+    This provides the minimized mini Neptune value in the wavelength range limit, as well as the fpfs values binned.
+    This was an initial attempt to see if I could order the values from smallest to largest, when next steps would be
+    giving both cases equal weight in deciding the ultimate match of the mini Neptune to Earth. 
+
+    Parameters:
+        fpfs_diff_dict: dictionary
+            output of calc_objective_dict_point_wv_range
+    
+    Returns:
+        index_wv_range: list
+            This provides the index of wavelength when looking at mini Neptune values limited by the wavelength range.
+        index_point: list
+            This provides the index of the wavelengths/fpfs/input data of the mini Neptune when limiting by binned point.
+        fpfs_diff_point: list
+            This provides the fpfs difference between Mini Neptune and Earth associated with the binning method.
+        fpfs_diff_wv_lim: list
+            This provides the fpfs value(s) differences between Mini Neptunes and Earths associated with the wavelength range method.
+        minNep_inputs: list
+            This logs what inputs are associated with what fpfs, fpfs_diff, and index values.
+
     """
     minNep_inputs_float = []
     
