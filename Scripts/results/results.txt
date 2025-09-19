@@ -1,0 +1,2 @@
+This is where I will store results explored during this project.
+Opacities will automatically install when running the PICASO script, or even the Photochem Script, just make sure to adjust path for opacity in the Reflected_Spectra_grid to where you have stored the opacities you'd like to use.

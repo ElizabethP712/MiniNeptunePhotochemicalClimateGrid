@@ -1,0 +1,86 @@
+Required Applications, Packages, & Downloads:
+
+# Need Conda Package Manager: Make sure to re-open terminal afterwards
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+bash Miniforge3-$(uname)-$(uname -m).sh
+
+# Create a virtual Environment for the rest of the packages
+mamba create -n AmesProjS25 -c conda-forge -c bokeh bokeh=2.4.3 python photochem numpy=1.26 matplotlib pandas pip numba xarray cantera pathos threadpoolctl miepython jupyter
+conda activate AmesProjS25
+
+# Add necessary packages to environment
+mamba install -c conda-forge -c bokeh bokeh=2.4.3 pandas joblib photutils astropy stsynphot sphinx xarray bibtexparser netcdf4 h5netcdf miepython
+mamba install wget
+
+# Then install PICASO -dev branch
+wget https://github.com/natashabatalha/picaso/archive/4b3b4758b7fc8f07915b6cccbaf89ca8e00bd71a.zip # Note if you cannot download via wget, just click on link, or wget
+unzip 4b3b4758b7fc8f07915b6cccbaf89ca8e00bd71a.zip
+mv 4b3b4758b7fc8f07915b6cccbaf89ca8e00bd71a picaso-dev
+cd picaso-dev
+python -m pip install . -v
+cd ..
+rm -r picaso-dev
+
+# Then clone the -dev branch so that you can create your own references data
+git clone https://github.com/natashabatalha/picaso.git --branch=dev
+cd picaso
+python setup.py install
+
+# Place this in the vi ~./bash_profile
+export picaso_refdata="/Users/nwogan/Applications/picaso_v4/reference/"
+
+# Then download opacitiy files
+# The download can be found here: https://zenodo.org/records/14861730 
+# Rename this as opacity.db and place in your references file
+# Also make sure to copy the references into your picaso_v4 folder:
+cp -r source_file_path destination_file_path
+
+# Then create an environmental variable
+vi ~/.bash_profile
+# Add this line (press "I" to insert, esc, and ":wq" to save)
+export picaso_refdata="/path/to/picaso/reference/"
+# Then back in the terminal...
+source ~/.bash_profile
+
+# Check that the environmental variable acted correctly
+echo $picaso_refdata
+/Users/nbatalh1/Documents/codes/PICASO/picaso/reference
+cd $picaso_refdata
+ls
+# output should be: base_cases chemistry config.json evolution opacities version.md
+
+# Download the link to the Pysynphot Stellar Data
+wget http://ssb.stsci.edu/trds/tarfiles/synphot3.tar.gz #or wget
+tar -xvzf synphot3.tar.gz
+vi ~/.bash_profile
+# Add this line (press "I" to insert, esc, and ":wq" to save)
+export PYSYN_CDBS="<your_path>/grp/redcat/trds"
+# Then back in the terminal check it worked properly
+source ~/.bash_profile
+cd $PYSYN_CDBS
+ls
+# output shoud give: grid
+
+# Finally, sometimes you have to uninstall photochem and reinstall it for this to work properly
+conda uninstall -c conda-forge photochem
+conda install -c conda-forge photochem==0.6.2
+
+# There are some additional packages to install as well
+conda install -c conda-forge mpi4py openmpi
+pip install astroquery
+
+# For some jupyter notebooks, downloading MUSCLE stellar flux/wavelength files are required
+# To do this you can go to the MAST Search Portal and filter for the files of interest
+# It is easiest to limit to a target name (i.e. GJ17), provenance name (i.e. MUSCLES)
+# https://mast.stsci.edu/portal/Mashup/Clients/Mast/Portal.html 
+
+# I also initially manually downloaded the opacity file dependent on metallicity and C/O ratio from the k coefficients database (Roxana et. al. 2021)
+# https://zenodo.org/records/7542068
+# This goes in the climate folder under picaso_v4 (which you will have to make)
+
+# From the MISC folder on the github, if notebooks and scripts are in the same directory all should work but you will need to move the following files to the same directory:
+# Sun_now
+# Photochem_1D_fv.h5 (currently on Tijuca)
+# Photochem_1D_fv.log (currently on Tijuca)
+
+
