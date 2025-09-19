@@ -10,10 +10,25 @@ from scipy import interpolate
 def find_PT_sol(filepath='/Users/epawelka/Documents/NASA_Ames_ProjS25/AmesProjS25Work/results/PICASO_climate_fv.h5',total_flux=None, log10_planet_metallicity=None, tint=None, grid_gridvals=PICASO_Climate_grid.get_gridvals_PICASO_TP()):
 
     """
-    Inputs:
-    log10_totalflux = np.array([1.25])
-    log10_planet_metallicity = np.array([0.75])
-    tint = np.array([50]) # in Kelvin
+    This finds the Pressure Temperature profile that matches inputs (or if in the range of the grid calculated, will linearly interpolate the results).
+
+    Parameters:
+    log10_totalflux = np.array
+        This is the total flux of the planet in units of x Solar.
+    log10_planet_metallicity = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    filepath = string
+        This is the file path to your PICASO or PT grid calculated
+    grid_gridvals = 2D array/list
+        These are the inputs ranged over in the PICASO grid referenced in the filepath.
+
+    Returns:
+    interp_results/comb_results: dictionary
+        This provides a dictionary of pressures and temperatures associated with the inputs provided. Temperature is in Kelvin, pressure is in bars. 
+        If no interpolation is neccessary, the comb_results will also have
+        whether or not the PICASO model converged.
     """
 
     # This takes the inputs that define the grid
@@ -64,11 +79,27 @@ def find_PT_sol(filepath='/Users/epawelka/Documents/NASA_Ames_ProjS25/AmesProjS2
 def find_Photochem_sol(filepath='/Users/epawelka/Documents/NASA_Ames_ProjS25/AmesProjS25Work/results/Photochem_1D_fv.h5',total_flux=None, log10_planet_metallicity=None, tint=None, Kzz=None, grid_gridvals=Photochem_grid.get_gridvals_Photochem()):
 
     """
-    Inputs:
-    log10_totalflux = np.array([1.25])
-    log10_planet_metallicity = np.array([0.75])
-    tint = np.array([50]) # in Kelvin
-    kzz = np.array([7]) # in log space
+    This function finds the photochemical model match to the inputs provided that were ranged over in the Photochem grid. Will interpolate if inputs are between ranges used in the grid.
+
+    Parameters:
+    log10_totalflux = np.array
+        This is the total flux of the planet in units of x Solar.
+    log10_planet_metallicity = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz = np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    filepath = string
+        This is the file path to your 1D photochemical grid calculated
+    grid_gridvals = 2D array/list
+        These are the inputs ranged over in the Photochem grid referenced in the filepath.
+
+    Returns:
+    interp_results/comb_results: dictionary
+        This provides the pressure (dynes/cm^2), temperature (Kelvin), molecular abundances (fractions out of 1 associated w/ 100% of the atmosphere). 
+        If no interpolation occurs, it will also have whether or not the PICASO & Photochemical model converged.
+
     """
 
     # This takes the inputs that define the grid
@@ -129,12 +160,31 @@ def find_Photochem_sol(filepath='/Users/epawelka/Documents/NASA_Ames_ProjS25/Ame
 def find_ReflectedSpectra_sol(filepath='/Users/epawelka/Documents/NASA_Ames_ProjS25/AmesProjS25Work/results/ReflectedSpectra_fv.h5',total_flux = None, log10_planet_metallicity=None, tint=None, Kzz=None, phase=None, grid_gridvals=Reflected_Spectra.get_gridvals_RSM()):
 
     """
-    Inputs:
-    log10_totalflux = np.array([1.25])
-    log10_planet_metallicity = np.array([0.75])
-    tint = np.array([50]) # in Kelvin
-    kzz = np.array([7]) # in log space
-    phase = np.array([0]) # in radians
+    This function finds the reflected light spectra match to the inputs provided that were ranged over in the Reflected Spectra grid. Will interpolate if inputs are between ranges used in the grid.
+
+    Parameters:
+    log10_totalflux = np.array
+        This is the total flux of the planet in units of x Solar.
+    log10_planet_metallicity = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz = np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase = np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+    filepath = string
+        This is the file path to your reflected spectra grid calculated
+    grid_gridvals = 2D array/list
+        These are the inputs ranged over in the reflected spectra grid referenced in the filepath.
+
+    Returns:
+    interp_results/comb_results: dictionary
+        This provides the wavenumber, albedo, and fpfs (flux of planet to star ratio) based on inputs provided; 
+        If interpolated, whether or not a cloud was implemented is not printed and will have to independently 
+        be investigated, but will print if not interpolated.
+
     """
 
     # This takes the inputs that define the grid

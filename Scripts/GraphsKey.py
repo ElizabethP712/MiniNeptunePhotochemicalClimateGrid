@@ -12,10 +12,30 @@ import pickle
 # Open an h5 file
 def find_Reflected_Spectra_values(filename=None, total_flux=None, log10_planet_metallicity=None, tint=None, Kzz=None, phase=None, gridvals=Reflected_Spectra.get_gridvals_RSM()):
     """
-    filename = this is the output of makegrid for climate model using Photochem
-    flux, metallicity, tint, Kzz are the same inputs used to create the photochemical grid
-    but the gridvals are what was used for the Photochem modeling
-    Also note that I might want to add a if then statement for convergence (some PT profiles didn't converge with PICASO)
+    This function finds the reflected light spectra match to the inputs provided that were ranged over in the Reflected Spectra grid. It does NOT interpolate between ranges of points on the grid.
+    Please see FilterGrids.py for interpolation capability.
+
+    Parameters:
+    log10_totalflux = np.array
+        This is the total flux of the planet in units of x Solar.
+    log10_planet_metallicity = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz = np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase = np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+    filepath = string
+        This is the file path to your reflected spectra grid calculated
+    grid_gridvals = 2D array/list
+        These are the inputs ranged over in the reflected spectra grid referenced in the filepath.
+
+    Returns:
+    interp_results/comb_results: lists
+        This provides the wavenumber, albedo, and fpfs (flux of planet to star ratio) based on inputs provided.
+
     """
     gridvals_metal = [float(s) for s in gridvals[1]]
     log10_planet_metallicity = float(log10_planet_metallicity)
@@ -54,25 +74,49 @@ def find_Reflected_Spectra_values(filename=None, total_flux=None, log10_planet_m
             
             return wno, albedo, fpfs
 
-def find_all_plotting_values_old(total_flux=None, planet_metal=None, tint=None, kzz=None, phase=None, ptop=None, pbottom=None, w0=None, g0=None, opd=None, reflected_spec=False):
-
-    
-    PT_list, convergence_values = Photochem_grid.find_PT_grid(total_flux=total_flux, log10_planet_metallicity=planet_metal, tint=tint, gridvals=PICASO_Climate_grid.get_gridvals_PICASO_TP())
-    
-    sol_dict, soleq_dict, PT_list_Photochem, convergence_PC, convergence_TP = Reflected_Spectra.find_Photochem_match(total_flux=total_flux, log10_planet_metallicity=planet_metal, tint=tint, Kzz=kzz, gridvals= Photochem_grid.get_gridvals_Photochem())
-    
-    if reflected_spec == False:
-        wno = 0
-        albedo = 0
-        fpfs = 0
-        return PT_list, sol_dict, soleq_dict, wno, albedo, fpfs, PT_list_Photochem
-    
-    elif reflected_spec == True:
-        wno, albedo, fpfs = find_Reflected_Spectra_values(total_flux=total_flux, log10_planet_metallicity=planet_metal, tint=tint, Kzz=kzz, phase=phase, gridvals=Reflected_Spectra.get_gridvals_RSM())
-        
-        return PT_list, sol_dict, soleq_dict, wno, albedo, fpfs, PT_list_Photochem
 
 def find_all_plotting_values(total_flux=None, planet_metal=None, tint=None, kzz=None, phase=None, calc_PT=True, calc_PhotCh=True, calc_RSM=True):
+
+     """
+    This will find all values that match inputs (PT, 1D Photochemical Model, Reflected Spectra) if desired for easier plotting/visualization.
+
+    Parameters:
+    log10_totalflux = np.array
+        This is the total flux of the planet in units of x Solar.
+    log10_planet_metallicity = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz = np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase = np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+    calc_PT = boolean
+        When True will calculate PT match/results, when False will not.
+    calc_PhotCh = boolean
+        When True will calculate Photochem match/results, when False will not.
+    calc_RSM = boolean
+        When True will calculate Photochem match/results, when False will not.
+
+    Returns:
+    PT_list: 2D list
+        This provides pressure as the first list(in bars) and temperature (in Kelvin) as the second list. 
+    sol_dict: dictionary
+        This provides the molecular abundances in a steady state calculated by Photochem in the grid.
+    soleq_dict: dictionary
+        This provides the molecular abundances in chemical equilibrium calculated by Photochem in the grid. 
+    wno: list
+        Wavenumber related to reflected spectra calculated.
+    albedo: list
+        Albedo of the reflected spectra calculated.
+    fpfs: list
+        Flux of the planet to star ratio of the reflected spectra calculated. 
+    PT_list_Photochem: 2D list
+        This is the pressure (dynes/cm^2) and temperature (Kelvin) lists used and extrapolated from PICASO's PT in the 1D Photochemical grid. 
+        Again, pressure is the first list and temperature is the second.
+
+    """
 
     # Results from PICASO Grid (Interpolates if within range of grid)
     if calc_PT == True:
@@ -121,6 +165,30 @@ def find_all_plotting_values(total_flux=None, planet_metal=None, tint=None, kzz=
     
 
 def plot_PT(total_flux=None, planet_metal=None, tint=None, kzz=None, phase=None, calc_PT=True, calc_PhotCh=True, calc_RSM=False):
+
+    """
+    This will plot the PT profile from PICASO grid and the extrapolated version from Photochem for comparison for inputs provided. 
+
+    Parameters:
+    total_flux = np.array
+        This is the total flux of the planet in units of x Solar.
+    planet_metal = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz = np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase = np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+    calc_PT = boolean
+        When True will calculate PT match/results, when False will not.
+    calc_PhotCh = boolean
+        When True will calculate Photochem match/results, when False will not.
+    calc_RSM = boolean
+        When True will calculate Photochem match/results, when False will not.
+
+    """
     
     PT_list, sol_dict, soleq_dict, wno, albedo, fpfs, PT_list_Photochem = find_all_plotting_values(total_flux=total_flux, planet_metal=planet_metal, tint=tint, kzz=kzz, phase=phase, calc_PT=calc_PT, calc_PhotCh=calc_PhotCh, calc_RSM=calc_RSM)
     
@@ -145,6 +213,30 @@ def plot_PT(total_flux=None, planet_metal=None, tint=None, kzz=None, phase=None,
     plt.show()
 
 def plot_PT_Photochem(total_flux=None, planet_metal=None, tint=None, kzz=None, phase=None, calc_PT=True, calc_PhotCh=True, calc_RSM=False):
+
+    """
+    This will plot the PT profile with molecular abundances as mixing ratios from Photochem grid based on inputs.
+
+    Parameters:
+    total_flux = np.array
+        This is the total flux of the planet in units of x Solar.
+    planet_metal = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz = np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase = np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+    calc_PT = boolean
+        When True will calculate PT match/results, when False will not.
+    calc_PhotCh = boolean
+        When True will calculate Photochem match/results, when False will not.
+    calc_RSM = boolean
+        When True will calculate Photochem match/results, when False will not.
+
+    """
     
     PT_list, sol_dict, soleq_dict, wno, albedo, fpfs, PT_list_Photochem = find_all_plotting_values(total_flux=total_flux, planet_metal=planet_metal, tint=tint, kzz=kzz, phase=phase, calc_PT=calc_PT, calc_PhotCh=calc_PhotCh, calc_RSM=calc_RSM)
     
@@ -195,6 +287,16 @@ def plot_PT_Photochem(total_flux=None, planet_metal=None, tint=None, kzz=None, p
     # plt.close()
 
 def plot_solar_spectra(solar_file_name='GJ176_spectrum_278K.txt'):
+
+    """
+    This will plot the reflected light spectrum of any star in solar flux (mW/m^2/nm) as a function of wavelength (nm).
+
+    Parameters:
+    solar_file_name: 
+        This should be txt table with a wavelength (nm) column and solar flux column.
+        To create this file use: wv, F = star_spectrum.solar_spectrum(outputfile='Sun_Teq278.txt', Teq=278), or some equivalent.
+    
+    """
     
     # Determine solar data:
     data_star = pd.read_csv(solar_file_name, sep='/t', engine='python')
@@ -227,6 +329,30 @@ def plot_solar_spectra(solar_file_name='GJ176_spectrum_278K.txt'):
 
 def plot_Reflected_Spectra(total_flux=None, planet_metal=None, tint=None, kzz=None, phase=None, calc_PT=False, calc_PhotCh=False, calc_RSM=True):
 
+    """
+    This will plot the reflected light spectra of fpfs (flux of planet/star ratio) as a function of wavelength (microns) based on grid related to inputs. 
+
+    Parameters:
+    total_flux = np.array
+        This is the total flux of the planet in units of x Solar.
+    planet_metal = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz = np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase = np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+    calc_PT = boolean
+        When True will calculate PT match/results, when False will not.
+    calc_PhotCh = boolean
+        When True will calculate Photochem match/results, when False will not.
+    calc_RSM = boolean
+        When True will calculate Photochem match/results, when False will not.
+
+    """
+
     PT_list, sol_dict, soleq_dict, wno, albedo, fpfs, PT_list_Photochem = find_all_plotting_values(total_flux=total_flux, planet_metal=planet_metal, tint=tint, kzz=kzz, phase=phase, calc_PT=calc_PT, calc_PhotCh=calc_PhotCh, calc_RSM=calc_RSM)
 
     fig,ax = plt.subplots(1,1,figsize=[5,4])
@@ -250,6 +376,32 @@ def plot_Reflected_Spectra(total_flux=None, planet_metal=None, tint=None, kzz=No
     plt.show()
 
 def plot_Reflected_Spectra_comp(total_flux=None, planet_metal=None, tint=None, kzz=None, phase=None, calc_PT=False, calc_PhotCh=False, calc_RSM=True):
+
+    """
+    This will plot the reflected light spectra of fpfs (flux of planet/star ratio) as a function of wavelength (microns) based on grid related to inputs,
+    and will compare the case with your chosen inputs, to a modern Earth with a grey cloud that comes from make_case_earth() function in the Reflected_Spectra
+    grid script.
+
+    Parameters:
+    total_flux = np.array
+        This is the total flux of the planet in units of x Solar.
+    planet_metal = np.array
+        This is the metallicity of the planet in units of log10 x Solar (so 0.5 is 10^0.5 = 3x Solar)
+    tint = np.array
+        This is the internal temperature in Kelvin of the planet.
+    kzz = np.array
+        This is the eddy diffusion coeficient used in logspace and cm^2/s.
+    phase = np.array
+        This is how much of the face of the planet we can observe in its orbit with 0 being the brightest and increasing degrees becomming
+        more dim. Units should be in radians. 
+    calc_PT = boolean
+        When True will calculate PT match/results, when False will not.
+    calc_PhotCh = boolean
+        When True will calculate Photochem match/results, when False will not.
+    calc_RSM = boolean
+        When True will calculate Photochem match/results, when False will not.
+
+    """
 
     PT_list, sol_dict, soleq_dict, wno, albedo, fpfs, PT_list_Photochem = find_all_plotting_values(total_flux=total_flux, planet_metal=planet_metal, tint=tint, kzz=kzz, phase=phase, calc_PT=calc_PT, calc_PhotCh=calc_PhotCh, calc_RSM=calc_RSM)
 
